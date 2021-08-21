@@ -1,0 +1,2 @@
+qasrl_id,verb_idx,verb,question,answer,answer_range,wh,aux,subj,obj,prep,obj2,is_negated,is_passive
+Wiki1k:wikinews:623822:4:0,23,carrying,who was carrying something?,Adam Lanza,12:14,,,,,,,,
