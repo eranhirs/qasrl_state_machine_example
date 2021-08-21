@@ -2,7 +2,7 @@
 
 Easy to run example of the QASRL state machine from [Large-Scale QA-SRL Parsing](https://github.com/julianmichael/qasrl).
 
-Based on [Controlled Crowdsourcing for High-Quality QA-SRL Annotation](https://github.com/plroit/qasrl-crowdsourcing/blob/ecbplus/qasrl-crowd-example/jvm/src/main/scala/example/RunQuestionParser.scala) fork.
+Based on the script from [Controlled Crowdsourcing for High-Quality QA-SRL Annotation](https://github.com/plroit/qasrl-crowdsourcing/blob/ecbplus/qasrl-crowd-example/jvm/src/main/scala/example/RunQuestionParser.scala).
 
 ## How to run single predict example
 
@@ -15,15 +15,16 @@ Based on [Controlled Crowdsourcing for High-Quality QA-SRL Annotation](https://g
 Example `input_file.csv` and `input_sentences_file.csv` can be found in the `data` directory.
 
 1. `docker pull hirscheran/qasrl_state_machine_example`
-2. `docker run -it hirscheran/qasrl_state_machine_example "file" "input_file.csv" "input_sentences_file.csv" "output_file.csv"`
+2. `docker run -it -v "$(pwd)/data/:/data" --rm --name qasrl hirscheran/qasrl_state_machine_example "file" "/data/input_file.csv" "/data/input_sentences_file.csv" "/data/output_file.csv"`
+   1. If you decide to use files from a different directory, you also need to change the volume command.
 
 ## Development
 
 See original project or the Dockerfile for development instructions.
 
-Build docker image: `docker build -t hirscheran/scala-mill .`
+Build docker image: `docker build -t hirscheran/qasrl_state_machine_example .`
 
-Push docker image: `docker push hirscheran/scala-mill`
+Push docker image: `docker push hirscheran/qasrl_state_machine_example`
 
 ## Citations
 
