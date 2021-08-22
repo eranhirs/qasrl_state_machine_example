@@ -14,8 +14,8 @@ case class ExampleQuestionAnswerFromFile(
                                    var obj: String = null,
                                    var prep: String = null,
                                    var obj2: String = null,
-                                   var is_negated: Option[Boolean] = null,
-                                   var is_passive: Option[Boolean] = null,
+                                   var is_negated: Option[Boolean] = Option.empty,
+                                   var is_passive: Option[Boolean] = Option.empty,
                                    var parse_succeeded: Boolean = false
                                  ) extends InputExample {
   override def getSentence: String = this.sentence
