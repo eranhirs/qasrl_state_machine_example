@@ -7,14 +7,19 @@ Based on the script from [Controlled Crowdsourcing for High-Quality QA-SRL Annot
 ## How to run single predict example
 
 1. `docker run -it hirscheran/qasrl_state_machine_example "predict" "I really wanted to eat my ice cream before it melted , but I was busy presenting my poster ." 4 "what is someone eating?"`
-   1. The number 4 indicates the predicate index in the sentence (counting from zero).
-
+   1. The number 4 indicates the predicate index in the sentence (counting from zero). 
+   
+Alternatively, You can state the verb explicitly , e.g. for nominalizations: 
+2. `docker run -it hirscheran/qasrl_state_machine_example "predict" "I really wanted to eat my ice cream before it melted , but I was busy with the presentation of my poster ." "present" "what is someone presenting?"`
 ## How to run multiple examples with a csv file
 
 Example `input_file.csv` and `input_sentences_file.csv` can be found in the `data` directory.
 
 1. `docker run -it -v "$(pwd)/data/:/data" --rm --name qasrl hirscheran/qasrl_state_machine_example "file" "/data/input_file.csv" "/data/input_sentences_file.csv" "/data/output_file.csv"`
    1. If you decide to use files from a different directory, you also need to change the volume command.
+
+Alternatively, if `input_file.csv` includes a `sentence` column with the sentence string (as in QANom data files), you can omit `input_sentences_file.csv`:
+2. `docker run -it -v "$(pwd)/data/:/data" --rm --name qasrl hirscheran/qasrl_state_machine_example "file" "/data/input_qanom_file.csv" "/data/output_qanom_file.csv"`
 
 ## Development
 
