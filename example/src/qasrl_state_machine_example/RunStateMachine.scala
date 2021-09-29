@@ -15,19 +15,30 @@ object RunStateMachine extends App {
     if (args.length > 0) {
       args(0) match {
         case "predict" => {
-          if (args.length != 4) {
-            println(f"Expecting exactly 3 arguments (sentence, predicate, predicted question) ; args.length ${args.length - 1}")
-            return List()
+          if (args.length == 4) {
+            val predicateIdxOrVerbForm = {
+              try {
+                Left(args(2).toInt)
+              }
+              catch {
+                case e: NumberFormatException => Right(args(2))
+              }
+            }
+            return List(ExampleFromCommandLine(args(1), predicateIdxOrVerbForm, args(3)))
           } else {
-            return List(ExampleFromCommandLine(args(1), args(2).toInt, args(3)))
+            println(f"Expecting 3 arguments (sentence, predicate-index or predicate's-verbal-form, predicted question) ; args.length ${args.length - 1}")
+            return List()
           }
         }
         case "file" => {
-          if (args.length != 4) {
-            println(f"Expecting exactly 3 arguments (inputFilePath, inputSentencesFilePath, outputFilePath) ; args.length ${args.length - 1}")
+          if (args.length == 4) {
+            return readFile(args(1), Some(args(2)))
+          } else if (args.length == 3) {
+            return readFile(args(1), None)
+          }  
+          else {
+            println(f"Expecting either 3 arguments (inputFilePath, inputSentencesFilePath, outputFilePath) or 2 arguments (inputIncludingSentenceFilePath, outputFilePath) ; args.length ${args.length - 1}")
             return List()
-          } else {
-            return readFile(args(1), args(2))
           }
         }
         case _ => {
@@ -41,14 +52,23 @@ object RunStateMachine extends App {
     }
   }
 
-  def readFile(inputFilePath: String, inputSentencesFilePath: String): List[InputExample] = {
+  def readFile(inputFilePath: String, inputSentencesFilePathOpt: Option[String]): List[InputExample] = {
     val reader = CSVReader.open(inputFilePath)
-    val sentencesReader = CSVReader.open(inputSentencesFilePath)
+    val inputWithHeaders = reader.allWithHeaders()
+    
+    val sentencesMap: Map[String, String] = inputSentencesFilePathOpt match {
+      case None => inputWithHeaders.map(rec =>
+        rec("qasrl_id") -> rec("sentence")).toMap
+      case Some(inputSentencesFilePath) => {
+        val sentencesReader = CSVReader.open(inputSentencesFilePath)
+        val sentenceMap = sentencesReader.allWithHeaders().map(rec =>
+          rec("qasrl_id") -> rec("tokens")).toMap
+        sentencesReader.close()
+        sentenceMap
+      }
+    }
 
-    val sentencesMap: Map[String, String] = sentencesReader.allWithHeaders().map(rec =>
-      rec("qasrl_id") -> rec("tokens")).toMap
-
-    val records: List[InputExample] = (for (rec <- reader.allWithHeaders())
+    val records: List[InputExample] = (for (rec <- inputWithHeaders)
       yield ExampleQuestionAnswerFromFile(
         sentencesMap(rec("qasrl_id")),
         rec("qasrl_id"),
@@ -56,19 +76,19 @@ object RunStateMachine extends App {
         rec("verb"),
         rec("question"),
         rec("answer"),
-        rec("answer_range")
+        rec("answer_range"),
+        rec.get("verb_form")
       )
     )
 
     reader.close()
-    sentencesReader.close()
 
     return records
   }
 
   def writeToFile(examples: List[InputExample]): Unit = {
     if (args.length > 0 && args(0) == "file") {
-      val outputFilePath = args(3)
+      val outputFilePath = args.last
 
       val writer = CSVWriter.open(outputFilePath)
       writer.writeRow(List("qasrl_id","verb_idx","verb","question","answer","answer_range","wh","aux","subj","obj","prep","obj2","is_negated","is_passive"))
@@ -91,14 +111,12 @@ object RunStateMachine extends App {
     val exampleSentence = inputExample.getSentence
     val predicateIdx = inputExample.getPredicateIdx
     val question = inputExample.getQuestion
-
-    val getSentenceTokens = (sentence: String) => sentence.split(" ").toVector
+    val tokens = inputExample.getSentenceTokens
 
     // Inflections object stores inflected forms for all of the verb tokens seen in exampleSentence.iterator
     // normally you would throw all of your data into this iterator
-    val tokens = getSentenceTokens(exampleSentence)
-    val inflections = wiktionary.getInflectionsForTokens(tokens.iterator)
-    val inflectedForms = inflections.getInflectedForms(tokens(predicateIdx).lowerCase).get
+    val inflections = wiktionary.getInflectionsForTokens(List(inputExample.getVerbForm).iterator)
+    val inflectedForms = inflections.getInflectedForms(inputExample.getVerbForm.lowerCase).get
 
     // State machine stores all of the logic of QA-SRL templates and connects them to / iteratively constructs their Frames (see Frame.scala)
     val stateMachine = new TemplateStateMachine(tokens, inflectedForms)

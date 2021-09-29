@@ -8,6 +8,7 @@ case class ExampleQuestionAnswerFromFile(
                                    question: String,
                                    answer: String,
                                    answer_range: String,
+                                   var verbForm: Option[String] = None,
                                    var wh: String = null,
                                    var aux: String = null,
                                    var subj: String = null,
@@ -21,6 +22,11 @@ case class ExampleQuestionAnswerFromFile(
   override def getSentence: String = this.sentence
 
   override def getPredicateIdx: Integer = this.verb_idx
+
+  override def getVerbForm: String = this.verbForm match {
+    case None => this.getSentenceTokens(this.getPredicateIdx)
+    case Some(verbalForm) => verbalForm 
+  }
 
   override def getQuestion: String = this.question
 }
