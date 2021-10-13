@@ -29,4 +29,8 @@ case class ExampleQuestionAnswerFromFile(
   }
 
   override def getQuestion: String = this.question
+
+  def as_invalid: ExampleQuestionAnswerFromFile = ExampleQuestionAnswerFromFile(
+    sentence, qasrl_id, verb_idx, verb, "--Invalid Output--", "", "", verbForm
+  )
 }

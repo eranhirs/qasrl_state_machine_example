@@ -8,6 +8,9 @@ import qasrl_state_machine_example.models.{ExampleFromCommandLine, ExampleQuesti
 
 import java.nio.file.Paths
 
+final case class CustomException(private val message: String = "", 
+                                 private val cause: Throwable = None.orNull)
+                      extends Exception(message, cause) 
 
 object RunStateMachine extends App {
 
@@ -104,7 +107,7 @@ object RunStateMachine extends App {
   }
 
   // Wiktionary data contains a bunch of inflections, used for the main verb in the QA-SRL template
-  val wiktionaryPath = Paths.get("datasets/wiktionary")
+  val wiktionaryPath = Paths.get("data/wiktionary")
   val wiktionary = new WiktionaryFileSystemService(wiktionaryPath)
 
   def parseExample(inputExample: InputExample): InputExample = {
@@ -115,48 +118,60 @@ object RunStateMachine extends App {
 
     // Inflections object stores inflected forms for all of the verb tokens seen in exampleSentence.iterator
     // normally you would throw all of your data into this iterator
-    val inflections = wiktionary.getInflectionsForTokens(List(inputExample.getVerbForm).iterator)
-    val inflectedForms = inflections.getInflectedForms(inputExample.getVerbForm.lowerCase).get
+    try {
 
-    // State machine stores all of the logic of QA-SRL templates and connects them to / iteratively constructs their Frames (see Frame.scala)
-    val stateMachine = new TemplateStateMachine(tokens, inflectedForms)
-    // Question processor provides a convenient interface for using the state machine to process a string
-    val questionProcessor = new QuestionProcessor(stateMachine)
+      
+      val inflections = wiktionary.getInflectionsForTokens(List(inputExample.getVerbForm).iterator)
+      val inflectedFormsOpt = inflections.getInflectedForms(inputExample.getVerbForm.lowerCase)
+      if (inflectedFormsOpt.isEmpty) throw CustomException(s"Verb-form '${inputExample.getVerbForm.lowerCase}' is not in wiktionary.")
+      val inflectedForms = inflectedFormsOpt.get
 
-    val goodStatesOpt = questionProcessor.processStringFully(question.toString).toOption
-    val slots = SlotBasedLabel.getSlotsForQuestion(tokens, inflectedForms, List(question.toString))
-    for {
-      slotOpt <- slots
-      slot <- slotOpt
-      goodStates <- goodStatesOpt
-    } {
-      val frame: Frame = goodStates.toList.collect {
-        case QuestionProcessor.CompleteState(_, someFrame, _) => someFrame
-      }.head
-      val subj = slot.subj.getOrElse("")
-      val aux = slot.aux.getOrElse("")
-      val verbPrefix = slot.verbPrefix
-      val obj = slot.obj.getOrElse("")
-      val prep = slot.prep.getOrElse("")
-      val obj2 = slot.obj2.getOrElse("")
-      println(s"${slot.wh},$subj,$aux,$verbPrefix,${slot.verb},$obj,$prep,$obj2," +
-        s"${frame.isPassive},${frame.isNegated},${frame.isProgressive},${frame.isPerfect}")
+      // State machine stores all of the logic of QA-SRL templates and connects them to / iteratively constructs their Frames (see Frame.scala)
+      val stateMachine = new TemplateStateMachine(tokens, inflectedForms)
+      // Question processor provides a convenient interface for using the state machine to process a string
+      val questionProcessor = new QuestionProcessor(stateMachine)
 
-      if (inputExample.isInstanceOf[ExampleQuestionAnswerFromFile]) {
-        val questionAnswer = inputExample.asInstanceOf[ExampleQuestionAnswerFromFile]
-        questionAnswer.wh = slot.wh
-        questionAnswer.subj = subj.toString
-        questionAnswer.aux = aux.toString
-        questionAnswer.obj = obj.toString
-        questionAnswer.prep = prep.toString
-        questionAnswer.obj2 = obj2.toString
-        questionAnswer.is_negated = Option(frame.isNegated)
-        questionAnswer.is_passive = Option(frame.isPassive)
-        questionAnswer.parse_succeeded = true
+      val goodStatesOpt = questionProcessor.processStringFully(question.toString).toOption
+      val slots = SlotBasedLabel.getSlotsForQuestion(tokens, inflectedForms, List(question.toString))
+      for {
+        slotOpt <- slots
+        slot <- slotOpt
+        goodStates <- goodStatesOpt
+      } {
+        val frame: Frame = goodStates.toList.collect {
+          case QuestionProcessor.CompleteState(_, someFrame, _) => someFrame
+        }.head
+        val subj = slot.subj.getOrElse("")
+        val aux = slot.aux.getOrElse("")
+        val verbPrefix = slot.verbPrefix
+        val obj = slot.obj.getOrElse("")
+        val prep = slot.prep.getOrElse("")
+        val obj2 = slot.obj2.getOrElse("")
+        println(s"${slot.wh},$subj,$aux,$verbPrefix,${slot.verb},$obj,$prep,$obj2," +
+          s"${frame.isPassive},${frame.isNegated},${frame.isProgressive},${frame.isPerfect}")
+
+        if (inputExample.isInstanceOf[ExampleQuestionAnswerFromFile]) {
+          val questionAnswer = inputExample.asInstanceOf[ExampleQuestionAnswerFromFile]
+          questionAnswer.wh = slot.wh
+          questionAnswer.subj = subj.toString
+          questionAnswer.aux = aux.toString
+          questionAnswer.obj = obj.toString
+          questionAnswer.prep = prep.toString
+          questionAnswer.obj2 = obj2.toString
+          questionAnswer.is_negated = Option(frame.isNegated)
+          questionAnswer.is_passive = Option(frame.isPassive)
+          questionAnswer.parse_succeeded = true
+        }
       }
-    }
 
-    return inputExample
+      return inputExample
+    } 
+    catch {
+      case e: Exception => {
+        println(s"Invalid output instance: ${e.getMessage()}")
+        return inputExample.asInstanceOf[ExampleQuestionAnswerFromFile].as_invalid
+      }
+    } 
   }
 
   val inputExamples = readCommandLine()
