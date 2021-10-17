@@ -94,12 +94,16 @@ object RunStateMachine extends App {
       val outputFilePath = args.last
 
       val writer = CSVWriter.open(outputFilePath)
-      writer.writeRow(List("qasrl_id","verb_idx","verb","question","answer","answer_range","wh","aux","subj","obj","prep","obj2","is_negated","is_passive"))
+      writer.writeRow(List("qasrl_id","verb_idx","verb","question","answer","answer_range","wh","aux","subj","verb_prefix","verb_slot_inflection","obj","prep","obj2","is_negated","is_passive"))
       writer.writeAll(
         for {
           example <- examples
           questionAnswer = example.asInstanceOf[ExampleQuestionAnswerFromFile]
-        } yield {List(questionAnswer.qasrl_id, questionAnswer.verb_idx, questionAnswer.verb, questionAnswer.question, questionAnswer.answer, questionAnswer.answer_range, questionAnswer.wh, questionAnswer.aux, questionAnswer.subj, questionAnswer.obj, questionAnswer.prep, questionAnswer.obj2, questionAnswer.is_negated.getOrElse(""), questionAnswer.is_passive.getOrElse(""))}
+        } yield {List(questionAnswer.qasrl_id, questionAnswer.verb_idx, questionAnswer.verb, questionAnswer.question, questionAnswer.answer, 
+                      questionAnswer.answer_range, questionAnswer.wh, 
+                      questionAnswer.aux, questionAnswer.subj, questionAnswer.verb_prefix, questionAnswer.verb_slot_inflection, 
+                      questionAnswer.obj, questionAnswer.prep, questionAnswer.obj2, 
+                      questionAnswer.is_negated.getOrElse(""), questionAnswer.is_passive.getOrElse(""))}
       )
 
       writer.close()
@@ -143,11 +147,12 @@ object RunStateMachine extends App {
         }.head
         val subj = slot.subj.getOrElse("")
         val aux = slot.aux.getOrElse("")
-        val verbPrefix = slot.verbPrefix
+        val verbPrefix = slot.verbPrefix.mkString("~!~")
+        val verbSlotInflection = frame.getVerbConjugation(!slot.subj.isEmpty).toString.capitalize
         val obj = slot.obj.getOrElse("")
         val prep = slot.prep.getOrElse("")
         val obj2 = slot.obj2.getOrElse("")
-        println(s"${slot.wh},$subj,$aux,$verbPrefix,${slot.verb},$obj,$prep,$obj2," +
+        println(s"${slot.wh},$subj,$aux,$verbPrefix,$verbSlotInflection,$obj,$prep,$obj2," +
           s"${frame.isPassive},${frame.isNegated},${frame.isProgressive},${frame.isPerfect}")
 
         if (inputExample.isInstanceOf[ExampleQuestionAnswerFromFile]) {
@@ -155,6 +160,8 @@ object RunStateMachine extends App {
           questionAnswer.wh = slot.wh
           questionAnswer.subj = subj.toString
           questionAnswer.aux = aux.toString
+          questionAnswer.verb_prefix = verbPrefix
+          questionAnswer.verb_slot_inflection = verbSlotInflection
           questionAnswer.obj = obj.toString
           questionAnswer.prep = prep.toString
           questionAnswer.obj2 = obj2.toString

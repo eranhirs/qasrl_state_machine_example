@@ -11,6 +11,8 @@ case class ExampleQuestionAnswerFromFile(
                                    var verbForm: Option[String] = None,
                                    var wh: String = null,
                                    var aux: String = null,
+                                   var verb_prefix: String = null,
+                                   var verb_slot_inflection: String = null,
                                    var subj: String = null,
                                    var obj: String = null,
                                    var prep: String = null,
