@@ -130,8 +130,16 @@ object RunStateMachine extends App {
       if (inflectedFormsOpt.isEmpty) throw CustomException(s"Verb-form '${inputExample.getVerbForm.lowerCase}' is not in wiktionary.")
       val inflectedForms = inflectedFormsOpt.get
 
+      // retrieve prepositions from the sentence
+      val qTokens = question.split(" ").toVector.map(_.lowerCase)
+      val qPreps = qTokens.filter(TemplateStateMachine.allPrepositions.contains).toSet
+      val qPrepBigrams = qTokens.sliding(2)
+        .filter(_.forall(TemplateStateMachine.allPrepositions.contains))
+        .map(_.mkString(" ").lowerCase)
+        .toSet
+
       // State machine stores all of the logic of QA-SRL templates and connects them to / iteratively constructs their Frames (see Frame.scala)
-      val stateMachine = new TemplateStateMachine(tokens, inflectedForms)
+      val stateMachine = new TemplateStateMachine(tokens, inflectedForms, Some(qPreps ++ qPrepBigrams))
       // Question processor provides a convenient interface for using the state machine to process a string
       val questionProcessor = new QuestionProcessor(stateMachine)
 
